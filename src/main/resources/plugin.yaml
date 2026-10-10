@@ -1,0 +1,20 @@
+# Refer https://docs.halo.run/developer-guide/plugin/basics/manifest
+apiVersion: plugin.halo.run/v1alpha1
+kind: Plugin
+metadata:
+  name: halo-plugin-site-notifications
+spec:
+  enabled: true
+  requires: ">=2.26.0"
+  author:
+    name: ilay
+    website: https://github.com/ilay1678
+  logo: logo.svg
+  homepage: https://github.com/ilay1678/halo-plugin-site-notifications#readme
+  repo: https://github.com/ilay1678/halo-plugin-site-notifications
+  issues: https://github.com/ilay1678/halo-plugin-site-notifications/issues
+  displayName: "站内通知"
+  description: "为 Halo 提供站内公告与消息管理，支持向全站用户、指定用户或角色立即或定时发送、取消定时任务与失败重试，用户在原生个人中心接收和阅读。"
+  license:
+    - name: "GPL-3.0"
+      url: "https://github.com/ilay1678/halo-plugin-site-notifications/blob/main/LICENSE"
