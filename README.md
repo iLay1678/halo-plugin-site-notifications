@@ -125,13 +125,15 @@ Windows 使用工程提供的入口，按本机情况指定完整 JDK 路径：
 ./build-local.ps1 -JdkPath "D:/your-jdk-21" -GradleArguments @("build", "--console=plain")
 ```
 
-`build-local.ps1` 的默认 JDK 路径为 `D:/jdk/jdk-21.0.12.15`；路径不同时使用 `-JdkPath` 覆盖。脚本仅为本次构建指定 JDK，不修改全局环境变量。
+`build-local.ps1` 的默认 JDK 路径为 `D:/jdk/jdk-21.0.12.15`；路径不同时使用 `-JdkPath` 覆盖。脚本仅为本次构建指定 JDK，不修改全局环境变量。共享的 `gradle.properties` 不设置本机 JDK 路径。
 
-macOS / Linux 调整 `gradle.properties` 中的本地 JDK 路径后执行：
+macOS / Linux 安装 JDK 21，并确保 `JAVA_HOME` 指向该 JDK 后执行：
 
 ```bash
 ./gradlew build
 ```
+
+GitHub Actions 通过工作流的 `java-version: 21` 安装 JDK，Gradle 使用 Runner 提供的 JDK，无需配置本地路径。
 
 产物为 `build/libs/halo-plugin-site-notifications-1.0.0.jar`，包含后端、插件清单及 ESM 控制台资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
 
