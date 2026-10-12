@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

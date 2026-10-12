@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import run.halo.app.core.extension.notification.NotificationTemplate;
 import run.halo.app.core.extension.notification.ReasonType;

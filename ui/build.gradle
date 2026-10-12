@@ -3,7 +3,7 @@ plugins {
     id "com.github.node-gradle.node" version "7.1.0"
 }
 
-group 'run.halo.sitenotifications.ui'
+group 'top.ilay.sitenotifications.ui'
 
 node {
     pnpmVersion = '10.33.0'

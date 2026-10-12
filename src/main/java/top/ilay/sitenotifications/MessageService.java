@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.nio.charset.StandardCharsets;
@@ -21,8 +21,8 @@ import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.PageRequestImpl;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.sitenotifications.SiteMessage.Phase;
-import run.halo.sitenotifications.SiteMessage.SendMode;
+import top.ilay.sitenotifications.SiteMessage.Phase;
+import top.ilay.sitenotifications.SiteMessage.SendMode;
 
 @Service
 @RequiredArgsConstructor

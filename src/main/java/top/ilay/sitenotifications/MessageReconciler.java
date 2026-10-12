@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -19,8 +19,8 @@ import run.halo.app.extension.Metadata;
 import run.halo.app.extension.controller.Controller;
 import run.halo.app.extension.controller.ControllerBuilder;
 import run.halo.app.extension.controller.Reconciler;
-import run.halo.sitenotifications.SiteMessage.Phase;
-import run.halo.sitenotifications.SiteMessage.SendMode;
+import top.ilay.sitenotifications.SiteMessage.Phase;
+import top.ilay.sitenotifications.SiteMessage.SendMode;
 
 @Slf4j
 @Component

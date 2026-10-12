@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import static org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder;
 import static org.springdoc.core.fn.builders.parameter.Builder.parameterBuilder;
@@ -15,10 +15,10 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 import run.halo.app.core.extension.endpoint.CustomEndpoint;
 import run.halo.app.extension.GroupVersion;
-import run.halo.sitenotifications.MessageService.SiteMessagePage;
-import run.halo.sitenotifications.RecipientService.RecipientPreview;
-import run.halo.sitenotifications.RecipientService.RoleCandidateList;
-import run.halo.sitenotifications.RecipientService.UserCandidateList;
+import top.ilay.sitenotifications.MessageService.SiteMessagePage;
+import top.ilay.sitenotifications.RecipientService.RecipientPreview;
+import top.ilay.sitenotifications.RecipientService.RoleCandidateList;
+import top.ilay.sitenotifications.RecipientService.UserCandidateList;
 
 @Component
 @RequiredArgsConstructor

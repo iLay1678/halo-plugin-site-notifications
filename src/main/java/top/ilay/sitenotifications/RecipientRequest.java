@@ -1,8 +1,8 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
-import run.halo.sitenotifications.SiteMessage.Target;
+import top.ilay.sitenotifications.SiteMessage.Target;
 
 @Schema(name = "RecipientRequest")
 public record RecipientRequest(

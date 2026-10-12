@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,9 +10,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
-import run.halo.sitenotifications.SiteMessage.MessageType;
-import run.halo.sitenotifications.SiteMessage.SendMode;
-import run.halo.sitenotifications.SiteMessage.Target;
+import top.ilay.sitenotifications.SiteMessage.MessageType;
+import top.ilay.sitenotifications.SiteMessage.SendMode;
+import top.ilay.sitenotifications.SiteMessage.Target;
 
 class MessageRequestTest {
     static final Instant NOW = Instant.parse("2026-10-09T04:00:00Z");

@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,8 +15,8 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
-import run.halo.sitenotifications.SiteMessage.Phase;
-import run.halo.sitenotifications.SiteMessage.SendMode;
+import top.ilay.sitenotifications.SiteMessage.Phase;
+import top.ilay.sitenotifications.SiteMessage.SendMode;
 
 class MessageServiceTest {
     TestStore store;

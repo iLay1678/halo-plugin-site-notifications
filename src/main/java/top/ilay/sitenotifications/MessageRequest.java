@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import tools.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Objects;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
-import run.halo.sitenotifications.SiteMessage.MessageType;
-import run.halo.sitenotifications.SiteMessage.SendMode;
-import run.halo.sitenotifications.SiteMessage.Target;
+import top.ilay.sitenotifications.SiteMessage.MessageType;
+import top.ilay.sitenotifications.SiteMessage.SendMode;
+import top.ilay.sitenotifications.SiteMessage.Target;
 
 @Schema(name = "MessageRequest")
 public record MessageRequest(

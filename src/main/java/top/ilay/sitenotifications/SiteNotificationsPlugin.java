@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import run.halo.app.extension.Scheme;
 import run.halo.app.extension.SchemeManager;

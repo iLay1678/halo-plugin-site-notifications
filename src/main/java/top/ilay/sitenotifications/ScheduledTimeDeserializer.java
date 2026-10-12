@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;

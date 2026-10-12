@@ -1,64 +1,79 @@
 # 验证记录
 
-日期：2026-10-10。目标依赖 Halo 2.26.0；实际联调镜像 `registry.fit2cloud.com/halo/halo-pro:2.26`，实例报告版本 2.26.1。Java 为 JDK 21，目录 `D:/jdk/jdk-21.0.12.15`。
+日期：2026-10-12，时区 Asia/Shanghai。本记录对应下列实际安装验证的 **1.0.1** 制品，旧 1.0.0 包的大小、摘要和运行结果不作为本包的验收证明。
 
-## 自动化与源码审查
+## 制品与构建
 
-- 后端最终 **31 项测试全部通过**（7 个测试类，0 失败/错误）。独立审查发现默认 Jackson Instant 解码接受数字时间戳，随后添加严格 Jackson 3 请求字段解码与两项路由回归测试；完整构建确认修复。
-- 测试覆盖默认立即、三个接收范围、去重和失效账户过滤、未来时间和偏移换算、两种取消/开始版本竞争顺序、重复提交、取消幂等、取消不能重试、到期/启停恢复、失败重试、已读保留、用户删除后不再生成、创建成功但返回异常、HTML 转义和普通用户/匿名拒绝。
-- UI 最终 **14 项测试全部通过**，包含时间转换、非法日期、过去时间、同内容到期重试、候选精确回填和失败保留原值。类型、lint、Prettier 检查全部通过。
-- `generateApiClient -x build` 从独立实例真实 `/v3/api-docs/siteNotifications` 生成成功；未手写生成契约。
-- 通知中心接入：投递改为创建自定义 `ReasonType` / `Reason` 并调用 `NotificationCenter`，启动时幂等注册 `NotificationTemplate`，站内与邮件正文均直接使用填写的正文。
-- 邮件提醒依赖 Halo 的标准邮件通知器：必须启用邮件通知器、配置可用 SMTP、验证用户邮箱并在用户通知偏好中启用该通知类型。插件不会绕过用户偏好强制发信；关闭邮件后仍保留站内消息。
-- 详细验证、构建和联调边界记录在本文档中。
-
-## 独立 Halo 集成证据
-
-联调使用独立容器 `halo-site-notifications-dev`、地址 `http://localhost:8091`，数据保存在工程 `workplace/halo`。所有测试账号与消息只存在此实例，原 `8090` Halo 未改动。
-
-| 场景 | 结果 |
+| 项目 | 值 |
 | --- | --- |
-| 插件安装和启用 | Scheme 注册、Clock 注入、Reconciler 启动及管理 API 正常 |
-| 指定用户立即发送 | `PENDING → SENT`，投递 1/1；原生收件箱收到 |
-| 换行与 HTML | 原生详情保留换行，`<script>` 显示为文字，阅读后已读 |
-| 指定角色定时公告 | 等待期无投递；计划 `03:43:37.824878Z`，完成 `03:43:38.021564406Z`，投递 1/1 |
-| 全站范围定时取消 | 取消后保留操作人和时间；到期后仍 `CANCELLED`，投递 0/1 |
-| 三种人数预览 | 创建测试普通用户后，ALL=2、USERS=1、guest ROLES=1 |
-| 普通用户权限 | 读取任务、取消接口及原生 SiteMessage 资源列表均 403 |
-| 停用期间到期 | 测试用户通知数为 0；启用后收到“启停恢复联调”且为未读 |
-| 已取消任务经历启停 | 保留取消状态，无通知 |
-| 含 UI 插件升级 | ESM 主入口及动态 chunk 200，控制台菜单和发送记录正常加载 |
-| UI 用户搜索、多选、立即发送 | 先选择 notifytest 再搜索 pluginadmin，搜索期间预览仍 1；添加后预览 2，最终名单恰为这两人，投递 2/2 |
-| UI 角色搜索、多选 | 选择 guest，再搜索 super-role，仅保留这两个标签，预览 2，提交成功 |
-| UI 指定时间与取消确认 | 日期/时间为空时阻止提交；填写未来时间后创建 SCHEDULED，通过 Halo 确认弹窗取消，最终 CANCELLED、投递 0/2 |
-| 390×844 窄屏 | 表单双列变单列，弹窗正文可滚动、提交/关闭按钮可操作；发送记录、状态和详情无横向溢出 |
-| 数字时间输入 | 最终运行包收到数字 scheduledAt 返回 400 |
+| 文件 | `build/libs/halo-plugin-site-notifications-1.0.1.jar` |
+| 版本 | `1.0.1` |
+| 文件大小 | **100615 字节** |
+| SHA-256 | `546A7BD7F83632464F7647B9464DBB031425751C5A9147CF946CF4AF6A35D8DC` |
+| JAR 生成时间 | 2026-10-12 08:38:56 +08:00 |
+| Java / Halo 目标依赖 | JDK 21 / Halo 2.26.0 |
+| 最低 Halo 版本 | >=2.26.0 |
 
-独立 8091 实例未配置可投递的 SMTP 账号，因此本轮只验证了通知中心资源注册和原生收件箱链路，没有把测试邮件发送到真实邮箱。邮件发送由 Halo `EmailNotifier` 异步处理；配置 SMTP 后可用同一条发送流程验证，并在 Halo 日志中查看连接、认证或退信错误。
+迁移包名时已执行 clean build。随后将版本号升至 1.0.1，执行：
 
-实例初始化时预置主题下载失败，因此 Halo 全局主题检查有 404；这是测试实例缺少激活主题的宿主响应，不影响插件 API 或原生收件箱。未修改主题。
+```powershell
+./build-local.ps1 -GradleArguments @("build", "--console=plain")
+```
 
-## 构建与运行边界
+08:39 完成，`BUILD SUCCESSFUL in 49s`。后端 7 个测试类、31 项测试通过；前端 2 个测试文件、14 项测试通过；类型、ESLint、Prettier 检查通过。后端报告在 `build/reports/tests/test/index.html`。
 
-Windows 本地 Node 模式下 Gradle 的 pnpm.cmd 未在 PATH，通过工程内已下载的 pnpm.cjs + node 启动修复，未全局安装。宿主共享 Vue/Axios 版本与本机最新依赖有补丁版本差异，实际运行使用 Halo ESM 提供的共享模块，已在 2.26.1 联调。
+构建有 Gradle 弃用提示及 Vue/Axios 与宿主共享依赖补丁版本差异提示，未导致检查失败，本次未升级依赖。
 
-机器曾出现可用内存不足导致 Node/Rolldown 分配失败。构建改为串行类型检查与打包，Gradle 限制一个 worker；关闭本任务浏览器并停止空闲 Gradle daemon 后继续，未修改系统设置。
+## 命名空间与打包
 
-完整命令 `./build-local.ps1 -GradleArguments @("build", "--console=plain")` 于 2026-10-10 09:15 完成，`BUILD SUCCESSFUL in 36s`，后端 31 项、前端 14 项全部通过。JAR 资源包含 `plugin.yaml`、严格时间解码器、`ui/ui-plugin.json`、ESM 主入口和动态 MessagesView chunk。资源复制任务使用 Sync，后续重建同步清除历史带 hash 的 UI 资源，避免旧包体累积。
+- 12 个生产文件、8 个测试文件迁至 `top.ilay.sitenotifications`，目录、package 和自有 import 同步更新。逐文件对比确认 Java 变更仅涉及包名。
+- 根 Gradle group 为 `top.ilay`，UI group 为 `top.ilay.sitenotifications.ui`，README 路径同步更新。
+- JAR 的 25 个业务 class 均在 `top/ilay/sitenotifications/`，无旧业务包 class。
+- 自动生成的 `META-INF/plugin-components.idx` 中 7 个组件均指向新包。
+- `plugin.yaml` 与 Manifest 的版本均为 1.0.1，Logo、ESM 入口、页面 chunk、CSS 和 `ui-plugin.json` 已包含。
+- Halo API、BOM、DevTools 以及 Manifest 中宿主 BasePlugin 的 `run.halo` 引用保留。它们属于平台依赖，自有组件使用上述新索引注册。
+- 插件标识、业务数据组及管理 API 地址保持原值，避免历史任务失联。
 
-最终交付文件 `build/libs/halo-plugin-site-notifications-1.0.0.jar` 大小 **100563 字节**，SHA256 为 `97509FE1052EF7E2E0613D7F417044DA9B47608D5AEF12F41933ED704EC0BE09`。包内包含新的 `NotificationResources`、通知中心投递逻辑、`plugin.yaml`、`ui/ui-plugin.json`、ESM 主入口和动态 MessagesView chunk。
+## 最终包运行验收
 
-独立 `8091` 实例已验证通知中心资源注册和控制器启动，已有 7 条任务记录可读取；本次源码变更后的最终 JAR 尚未覆盖安装到该容器，未对 `8091` 发送新的测试消息。
+环境：隔离容器 `halo-site-notifications-review`，`http://localhost:8093`，仅绑定 `127.0.0.1`；镜像 `registry.fit2cloud.com/halo/halo-pro:2.26`，实际版本 2.26.1。H2 数据目录为 `workplace/review-20261012`。测试账户为 `reviewadmin` 和 guest 角色的 `reviewuser`。
 
-自动化验证覆盖客户端同内容到期重试和响应丢失后的身份复用；浏览器未模拟丢弃成功响应这一网络故障。未通过浏览器创建超 100 个真实用户，首 100 项之外的候选回填由专门测试覆盖。浏览器截图 `compose-mobile.png`、`records-mobile.png` 保存在本目录。
+08:41–08:44 在隔离实例卸载旧插件后，通过控制台本地上传 1.0.1 并确认启用，实际状态 `STARTED`，原有 6 条任务仍可读取。安装目录中 JAR 的大小和 SHA-256 与本文完全一致。**本次属于重新安装验证，不是覆盖升级验证。**
 
-未获取原 `http://localhost:8090` 管理员会话，因此没有在原实例安装或向其用户发消息。交付 JAR 可从该实例控制台上传启用。没有运行 Git 初始化、分支、提交或推送。
+验收方式：浏览器自动化操作真实控制台与用户中心，真实 API 创建场景、临时禁用测试用户模拟失效，并读取任务及通知资源进行断言；没有模拟通知投递。不是用户亲自签字的人工验收。
 
-## 插件命名与描述更新
+| 场景 | 1.0.1 实测结果 |
+| --- | --- |
+| 安装、启用 | 控制台上传、启用成功；插件版本 1.0.1，状态 STARTED，菜单和记录页面加载正常 |
+| 指定用户立即 | 请求省略 sendMode，按 IMMEDIATE 处理；08:42:50.708 完成 SENT、1/1，仅 reviewuser 收到 |
+| 全站定时取消 | 计划 08:43:33.237，08:42:54.935 取消；过期后仍 CANCELLED、0/2，无通知 |
+| 指定角色定时公告 | guest 角色，计划 08:44:09.700，08:44:09.705 开始、08:44:09.774 完成；SENT、1/1，到期前 SCHEDULED |
+| 真实部分失败与重试 | 全站名单含两人，创建后临时禁用 reviewuser；到期 PARTIAL_FAILED、1/2。恢复账号并调用重试，08:43:26.781 完成 SENT、2/2；两名用户各一条通知，无重复 |
+| 收件箱与正文 | 普通用户登录个人中心，看到立即消息、定时公告和重试消息；资源正文逐字比对一致，HTML 标签按纯文本转义 |
+| 历史记录 | 重新安装后，旧包创建的六条任务仍可查询 |
 
-按用户提供的 Passkey 插件资料完善作者、描述、主页、仓库、问题反馈与许可证链接；用户明确无需保留旧标识，当前插件标识及 Gradle 项目名统一为 `halo-plugin-site-notifications`，仓库地址配置为 `https://github.com/ilay1678/halo-plugin-site-notifications`，作者为 `ilay`。未创建或发布 GitHub 仓库，未复制另一个插件的应用市场 app-id。README 补齐功能表、截图、安装与切换说明、发送/定时/取消/重试操作、开发和 API 示例。
+最终断言检查四条新任务的状态、准确接收人、正文、定时开始不早于计划时间，以及取消后到期无通知、重试无重复。临时禁用的测试用户已恢复正常。
 
-前端菜单权限同步为 `plugin:halo-plugin-site-notifications:manage`。UI 构建任务将 `plugin.yaml` 纳入输入，清单变化会触发重新打包；业务数据模型与 API 命名空间沿用，不涉及数据搬迁。
+### 可复查任务
 
-历史构建和旧标识制品记录保留在此文档中；本次最终交付以 2026-10-10 09:15 的构建和 SHA256 为准。原 `8090` 实例未改动。README 中引用的 Logo、许可证、三张截图与验证记录文件均存在。
+| 场景 / requestId | SiteMessage 名称 |
+| --- | --- |
+| `v101-immediate` | `sm-86d434b65bd4b48a298d7ece348d0657df587aea544f38fa5781325ae6ab25a8` |
+| `v101-cancel` | `sm-fda1e7a5e07733de94b4ada4a56cf3f5a6db0587fa7f65be0df27727dff3f9b4` |
+| `v101-scheduled` | `sm-478f830cae01eb89202325aa7ecb8dee4d8cce0720346215796e33e765c86239` |
+| `v101-retry` | `sm-56f80f4d5c86b3da1489ec42c3dc77f0352683fe60b63041a6c47e19c4817539` |
 
+本地详细证据位于忽略提交的 `build/review/`：`v101-created.json`、`v101-failure.json`、`v101-results.json`、`v101-records.png`。本表保存任务标识，复核可直接查询仍在运行的隔离实例。
+
+边界：未配置 SMTP，测试邮箱使用 `example.invalid`；实际邮件投递、退订及恢复未验证。控制台取消确认弹窗、等待详情及 guest 管理接口 403 在本轮稍早的迁移版 1.0.0 验证过，未冒充 1.0.1 的逐项界面复测结果。docs 三张产品截图为历史界面示例。原 8090、8091、8092 实例未修改。
+
+## 再次提交前核对
+
+送审应使用上述实际安装并验收的同一个 JAR。提交前复查：
+
+```powershell
+Get-Item "build/libs/halo-plugin-site-notifications-1.0.1.jar" | Select-Object Name, Length
+Get-FileHash "build/libs/halo-plugin-site-notifications-1.0.1.jar" -Algorithm SHA256
+```
+
+如果重新构建，或改用 GitHub Actions / Release 下载的 JAR，应以实际送审文件重新核对摘要并完成安装验证，再更新本文，不能沿用其他构建的摘要和运行记录。Git 提交日期不是构建或测试时间；上述时间均为实际执行时间。

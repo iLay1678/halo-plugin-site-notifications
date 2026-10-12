@@ -135,7 +135,9 @@ macOS / Linux 安装 JDK 21，并确保 `JAVA_HOME` 指向该 JDK 后执行：
 
 GitHub Actions 通过工作流的 `java-version: 21` 安装 JDK，Gradle 使用 Runner 提供的 JDK，无需配置本地路径。
 
-产物为 `build/libs/halo-plugin-site-notifications-1.0.0.jar`，包含后端、插件清单及 ESM 控制台资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
+产物为 `build/libs/halo-plugin-site-notifications-1.0.1.jar`，包含后端、插件清单及 ESM 控制台资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
+
+业务 Java 包为 `top.ilay.sitenotifications`，根 Gradle group 为 `top.ilay`。送审时请使用完成安装与功能验收的同一个 JAR，并将实际文件大小、SHA-256 和运行结果更新到 [验证记录](docs/verification.md)；重新构建或改用 CI 制品后需要重新核对。
 
 ### 生成 API 客户端
 
@@ -159,7 +161,7 @@ TypeScript 客户端位于 `ui/src/api/generated`，使用 DevTools 从已启用
 
 ```text
 halo-plugin-site-notifications/
-├── src/main/java/run/halo/sitenotifications/  # 校验、名单解析、管理 API 和后台投递
+├── src/main/java/top/ilay/sitenotifications/  # 校验、名单解析、管理 API 和后台投递
 ├── src/main/resources/                      # plugin.yaml 与 Logo
 ├── src/test/                                # 后端行为测试
 ├── ui/src/

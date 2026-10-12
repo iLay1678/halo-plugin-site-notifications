@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

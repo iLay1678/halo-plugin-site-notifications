@@ -1,4 +1,4 @@
-package run.halo.sitenotifications;
+package top.ilay.sitenotifications;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,10 +30,10 @@ import run.halo.app.notification.NotificationCenter;
 import run.halo.app.core.extension.notification.Reason;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.controller.Reconciler.Request;
-import run.halo.sitenotifications.SiteMessage.MessageType;
-import run.halo.sitenotifications.SiteMessage.Phase;
-import run.halo.sitenotifications.SiteMessage.SendMode;
-import run.halo.sitenotifications.SiteMessage.Target;
+import top.ilay.sitenotifications.SiteMessage.MessageType;
+import top.ilay.sitenotifications.SiteMessage.Phase;
+import top.ilay.sitenotifications.SiteMessage.SendMode;
+import top.ilay.sitenotifications.SiteMessage.Target;
 
 class MessageReconcilerTest {
     TestStore store;
