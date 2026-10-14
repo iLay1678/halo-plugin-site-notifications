@@ -37,20 +37,25 @@
 
 ## 截图预览
 
-### 控制台发送通知
+### 消息发送
 
-![控制台发送站内通知](docs/compose-desktop.png)
+![PC 端消息发送](docs/compose-desktop.png)
 
-### 移动端发送与记录
+### 定时发送
 
-<p>
-  <img src="docs/compose-mobile.png" alt="移动端发送通知" width="300">
-  <img src="docs/records-mobile.png" alt="移动端发送记录" width="300">
-</p>
+![PC 端定时发送](docs/scheduled-desktop.png)
 
-### 用户中心 Webhook 配置
+### 消息列表
 
-![用户中心 Webhook 通知配置](docs/webhook-user-center.png)
+![PC 端消息列表](docs/records-desktop.png)
+
+### Webhook 设置
+
+![PC 端 Webhook 设置](docs/webhook-user-center.png)
+
+### 订阅设置
+
+![PC 端通知订阅设置](docs/subscriptions-desktop.png)
 
 ## 系统要求
 
