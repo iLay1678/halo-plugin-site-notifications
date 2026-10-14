@@ -15,4 +15,5 @@
 
 
 export * from './api/site-message-v1alpha1-console-api';
+export * from './api/site-notification-webhook-v1alpha1-uc-api';
 

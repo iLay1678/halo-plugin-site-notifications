@@ -14,7 +14,7 @@ spec:
   repo: https://github.com/ilay1678/halo-plugin-site-notifications
   issues: https://github.com/ilay1678/halo-plugin-site-notifications/issues
   displayName: "站内通知"
-  description: "为 Halo 提供站内公告与消息管理，支持向全站用户、指定用户或角色立即或定时发送、取消定时任务与失败重试，用户在原生个人中心接收和阅读。"
+  description: "为 Halo 提供站内公告与消息管理，支持立即或定时发送、取消任务与失败重试，并支持用户在个人中心配置 Webhook，按订阅类型接收系统及插件通知。"
   license:
     - name: "GPL-3.0"
       url: "https://github.com/ilay1678/halo-plugin-site-notifications/blob/main/LICENSE"

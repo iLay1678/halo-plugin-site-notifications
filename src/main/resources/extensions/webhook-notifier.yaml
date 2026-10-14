@@ -1,0 +1,18 @@
+apiVersion: plugin.halo.run/v1alpha1
+kind: ExtensionDefinition
+metadata:
+  name: site-notifications-webhook
+spec:
+  className: top.ilay.sitenotifications.WebhookNotifier
+  extensionPointName: reactive-notifier
+  displayName: "Webhook 通知"
+  description: "将通知发送到用户自己配置的 Webhook 地址"
+---
+apiVersion: notification.halo.run/v1alpha1
+kind: NotifierDescriptor
+metadata:
+  name: site-notifications-webhook
+spec:
+  displayName: "Webhook 通知"
+  description: "将通知发送到用户自己配置的 Webhook 地址"
+  notifierExtName: "site-notifications-webhook"

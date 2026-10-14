@@ -25,5 +25,25 @@ export default definePlugin({
       },
     },
   ],
+  ucRoutes: [
+    {
+      parentName: 'NotificationsRoot',
+      route: {
+        path: '/site-notifications-webhook',
+        name: 'SiteNotificationsWebhook',
+        component: () => import('./views/WebhookSettingsView.vue'),
+        meta: {
+          title: 'Webhook 通知',
+          menu: {
+            name: 'Webhook 通知',
+            group: 'dashboard',
+            icon: markRaw(IconNotificationBadgeLine),
+            priority: 20,
+            mobile: true,
+          },
+        },
+      },
+    },
+  ],
   extensionPoints: {},
 })

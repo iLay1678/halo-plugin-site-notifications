@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  为 Halo 提供站内公告与消息管理，支持定向发送、定时发送和定时任务取消
+  为 Halo 提供站内公告与消息管理，支持定向与定时发送，以及用户自定义 Webhook 通知
 </p>
 
 <p align="center">
@@ -33,6 +33,7 @@
 | 失败重试 | 仅重试未成功接收者，保留已投递通知及其已读状态 |
 | 启停恢复 | 任务持久化，启用或重启后恢复处理未取消的到期任务 |
 | 邮件提醒 | 通过 Halo 通知中心发送；沿用用户的通知偏好、邮件通知器和 SMTP 配置 |
+| 用户 Webhook | 用户中心配置个人 HTTPS Webhook，按 Halo 原生通知偏好接收本插件及系统其他通知类型 |
 
 ## 截图预览
 
@@ -46,6 +47,10 @@
   <img src="docs/compose-mobile.png" alt="移动端发送通知" width="300">
   <img src="docs/records-mobile.png" alt="移动端发送记录" width="300">
 </p>
+
+### 用户中心 Webhook 配置
+
+![用户中心 Webhook 通知配置](docs/webhook-user-center.png)
 
 ## 系统要求
 
@@ -79,6 +84,39 @@
 4. SMTP 服务接受邮件，且目标邮箱没有退信、垃圾邮件拦截或发送频率限制。
 
 如果登录提醒能收到邮件而插件消息没有邮件，先检查用户通知偏好中是否为“站内通知”类型启用了邮件通知，再查看 Halo 日志中的邮件通知器错误。登录提醒与插件通知使用同一套邮件通知器和 SMTP 配置；插件升级后新通知类型默认使用 Halo 的默认邮件通知器，但用户仍可单独关闭该类型的邮件通知。
+
+### 用户 Webhook 通知
+
+1. 登录用户中心，进入“消息”下的“Webhook 通知”，保存自己的 Webhook 地址。
+2. 进入“我的 → 通知配置”，为需要接收的消息类型开启“Webhook 通知”通道，操作方式与邮件订阅相同。
+3. 对应类型的通知到达后，插件向该用户的地址发送一次 JSON POST。可重新输入地址替换配置，或点击“清除配置”停止转发。
+
+通知器接入 Halo 的 `reactive-notifier` 扩展点，覆盖经过 Halo 通知中心投递给该用户的通知，包括本插件的站内消息、评论通知、登录提醒及其他插件注册的通知类型。只有用户开启的类型会转发；直接写入通知资源、未经过通知中心的消息不会触发通知器。管理员需要在 Halo 的通知扩展点中保持此通知器启用。
+
+请求正文示例：
+
+```json
+{
+  "version": "1",
+  "title": "维护通知",
+  "rawBody": "今晚将进行系统维护。",
+  "htmlBody": "<p>今晚将进行系统维护。</p>",
+  "recipient": "alice",
+  "timestamp": "2026-10-14T00:00:00Z",
+  "subject": {
+    "apiVersion": "v1alpha1",
+    "kind": "SiteMessageRecipient",
+    "name": "message-001-alice",
+    "title": "维护通知",
+    "url": "/uc/notifications"
+  },
+  "attributes": {}
+}
+```
+
+`subject` 与 `attributes` 由通知来源提供，不同通知类型可能不同。接收端应返回 2xx；此功能投递失败只记录错误类型，不阻断其他通知通道，也不自动重试。
+
+地址仅允许 HTTPS、443 标准端口，禁止用户名/密码及 fragment，最多 4096 字符；拒绝本机、私网、链路本地、组播、云元数据等地址，并检查实际连接的全部 DNS 结果。请求不跟随重定向，连接超时 5 秒、整体超时 10 秒，响应正文最多 64 KiB。完整地址保存在插件专属 Secret 中，查询不会返回路径或令牌，用户只能管理自己的配置。
 
 ### 指定发送时间
 
@@ -135,7 +173,7 @@ macOS / Linux 安装 JDK 21，并确保 `JAVA_HOME` 指向该 JDK 后执行：
 
 GitHub Actions 通过工作流的 `java-version: 21` 安装 JDK，Gradle 使用 Runner 提供的 JDK，无需配置本地路径。
 
-产物为 `build/libs/halo-plugin-site-notifications-1.0.1.jar`，包含后端、插件清单及 ESM 控制台资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
+当前版本为 **1.1.0**，产物为 `build/libs/halo-plugin-site-notifications-1.1.0.jar`，包含后端、插件清单及 ESM 控制台和用户中心资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
 
 业务 Java 包为 `top.ilay.sitenotifications`，根 Gradle group 为 `top.ilay`。送审时请使用完成安装与功能验收的同一个 JAR，并将实际文件大小、SHA-256 和运行结果更新到 [验证记录](docs/verification.md)；重新构建或改用 CI 制品后需要重新核对。
 
@@ -143,10 +181,30 @@ GitHub Actions 通过工作流的 `java-version: 21` 安装 JDK，Gradle 使用 
 
 TypeScript 客户端位于 `ui/src/api/generated`，使用 DevTools 从已启用插件的真实 OpenAPI 生成，复用 Halo 的 `axiosInstance`。
 
-当前开发实例配置为 `http://localhost:8091`。开发实例需要开启 OpenAPI 并配置 `siteNotifications` 分组，包含管理 API 路径 `/apis/console.api.site-notifications.halo.run/v1alpha1/**`，使 `/v3/api-docs/siteNotifications` 可访问，再运行：
+当前开发实例配置为 `http://localhost:8091`。开发实例需要开启 OpenAPI 并配置 `siteNotifications` 分组，包含管理 API 路径 `/apis/console.api.site-notifications.halo.run/v1alpha1/**` 和用户 API 路径 `/apis/api.site-notifications.halo.run/v1alpha1/**`，使 `/v3/api-docs/siteNotifications` 可访问，再运行：
+
+```yaml
+springdoc:
+  api-docs:
+    enabled: true
+    version: OPENAPI_3_0
+  group-configs:
+    - group: siteNotifications
+      paths-to-match:
+        - /apis/console.api.site-notifications.halo.run/v1alpha1/**
+        - /apis/api.site-notifications.halo.run/v1alpha1/**
+```
+
+Windows 下使用 OpenAPI 3.0，避免当前生成器处理 OpenAPI 3.1 文件时出现 Windows 路径 URI 错误。配置仅用于本地开发实例。
 
 ```powershell
 ./build-local.ps1 -GradleArguments @("generateApiClient", "-x", "build")
+```
+
+复用其他端口的现有实例时，通过 Gradle 属性指定地址，例如本次隔离验收容器：
+
+```powershell
+./build-local.ps1 -GradleArguments @("generateApiClient", "-x", "build", "-PhaloExternalUrl=http://localhost:8093")
 ```
 
 首次没有生成客户端时，可先构建后端启动包：
@@ -174,7 +232,7 @@ halo-plugin-site-notifications/
 └── build.gradle                             # Halo 依赖及打包配置
 ```
 
-后端按请求校验、接收人解析、任务服务、鉴权和投递拆分职责；控制台复用 Halo FormKit 与宿主组件，收件箱沿用原生消息。已有 31 项后端测试、14 项前端测试，完整构建和独立实例验证结果见 [验证记录](docs/verification.md)。
+后端按请求校验、接收人解析、任务服务、鉴权和投递拆分职责；Webhook 按地址校验、Secret 存储、用户 API 和通知器拆分，复用 Halo 原生通知偏好。控制台及用户中心复用 Halo FormKit 与宿主组件，收件箱沿用原生消息。构建检查和独立实例验证范围见 [验证记录](docs/verification.md)。
 
 ## 管理 API
 
@@ -209,11 +267,15 @@ halo-plugin-site-notifications/
 
 无效输入返回 400，无权限返回 403，任务不存在返回 404；已开始任务取消、已取消任务重试、同一 `requestId` 对应不同内容返回 409。
 
+### 用户 Webhook API
+
+基础路径为 `/apis/api.site-notifications.halo.run/v1alpha1/userspaces/{username}/webhook`。GET 读取配置状态和脱敏后的域名，PUT 使用 `{"url":"https://example.com/hook"}` 保存，DELETE 清除。登录用户只能访问与本人用户名一致的路径，无效地址返回 400，越权访问返回 403；用户权限不包含 Secret 的直接读取权限。
+
 ## 常见问题
 
 ### 用户在哪里接收消息？
 
-登录 Halo 后进入原生个人中心的“消息”。插件使用 Halo 原生通知中心创建消息，因此用户中心通知正文直接显示填写的正文；邮件提醒由 Halo 邮件通知器按用户偏好发送。插件不发送短信或其他外部推送。
+登录 Halo 后进入原生个人中心的“消息”。插件使用 Halo 原生通知中心创建消息，因此用户中心通知正文直接显示填写的正文；邮件提醒由 Halo 邮件通知器按用户偏好发送。用户也可配置个人 Webhook，转发已订阅的通知类型。
 
 ### 为什么只看到站内消息，没有收到邮件？
 

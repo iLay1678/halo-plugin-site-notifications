@@ -17,3 +17,5 @@ export * from './site-message-status';
 export * from './test-operation';
 export * from './user-candidate';
 export * from './user-candidate-list';
+export * from './webhook-request';
+export * from './webhook-response';

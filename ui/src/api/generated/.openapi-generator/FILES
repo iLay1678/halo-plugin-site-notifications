@@ -3,6 +3,7 @@
 .openapi-generator-ignore
 api.ts
 api/site-message-v1alpha1-console-api.ts
+api/site-notification-webhook-v1alpha1-uc-api.ts
 base.ts
 common.ts
 configuration.ts
@@ -28,3 +29,5 @@ models/site-message.ts
 models/test-operation.ts
 models/user-candidate-list.ts
 models/user-candidate.ts
+models/webhook-request.ts
+models/webhook-response.ts

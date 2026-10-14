@@ -1,6 +1,68 @@
 # 验证记录
 
-日期：2026-10-12，时区 Asia/Shanghai。本记录对应下列实际安装验证的 **1.0.1** 制品，旧 1.0.0 包的大小、摘要和运行结果不作为本包的验收证明。
+## 2026-10-14 1.1.0 构建与容器验收
+
+本次新增用户中心配置页、个人 Secret 地址存储、Halo `reactive-notifier` 通知器、生成 API 客户端及登录用户权限资源。版本由 1.0.1 升至 **1.1.0**，最低 Halo 版本保持 >=2.26.0。
+
+| 项目 | 值 |
+| --- | --- |
+| 文件 | `build/libs/halo-plugin-site-notifications-1.1.0.jar` |
+| 文件大小 | **126988 字节** |
+| SHA-256 | `CD198A327E0DB19FD0161C3D4B2737B5D91468607F3A41BC94224CAF19FCEB64` |
+| JAR 生成时间 | 2026-10-14 18:56:17 +08:00 |
+| 构建完成 | 2026-10-14 18:57 +08:00，`BUILD SUCCESSFUL in 1m 35s` |
+| 目标依赖 | JDK 21 / Halo 2.26.0，最低版本仍为 >=2.26.0 |
+
+执行 `build-local.ps1 -JdkPath "D:/jdk/jdk-21.0.12.15" -GradleArguments @("build", "--console=plain")`，完整构建含检查。后端 **13 个测试类、49 项测试全部通过**；前端 **3 个文件、17 项测试全部通过**，Vue 类型、ESLint、Prettier 均通过。Java 报告位于 `build/reports/tests/test/index.html`，最终日志位于 `build/review-webhook/release-build.log`。
+
+- 后端覆盖配置隔离与清除、乐观锁冲突重试、未知用户无配置、自身用户鉴权、地址脱敏、非法地址 400、JSON POST 映射、未配置跳过、错误与超时隔离、真实 HTTP 客户端禁止重定向和 64 KiB 响应限制、IPv4/IPv6 私网与特殊地址、实际 DNS 结果校验。
+- 前端覆盖读取与保存后输入保持为空、避免脱敏地址覆盖真实配置、HTTPS 校验、保存错误提示和清除后的配置状态。
+- JAR 已核对包含 Webhook 通知器、端点、地址解析器等 class，`extensions/webhook-notifier.yaml`、`extensions/role-template-webhook.yaml`、ESM 入口、Webhook 页面 chunk 与组件索引。
+- 已依据 Halo 2.26.0 源码核对通知偏好调用路径、NotifierDescriptor、角色聚合 label 及 userspace 请求资源名；复用原生通知偏好选择接收类型，地址配置使用插件自己的受保护 API。
+
+### 真实运行环境
+
+复用原有隔离容器 `halo-site-notifications-review`，地址 `http://localhost:8093`，仅绑定 `127.0.0.1`；镜像 `registry.fit2cloud.com/halo/halo-pro:2.26`，实际 Halo 版本 2.26.1，数据目录 `workplace/review-20261012`。未修改 8091 开发容器或 8092 OIDC 容器。
+
+通过 Halo 升级 API 将已有 1.0.1 升级为 1.1.0，没有卸载插件。最终状态 `STARTED`，安装目录 JAR 的大小及 SHA-256 与上表一致。原 `v101-immediate`、`v101-cancel`、`v101-scheduled`、`v101-retry` 四条 1.0.1 验收任务仍可读取。端到端投递在此前的 1.1.0 候选包完成；随后补充设置页 JSON 示例并恢复生成客户端的默认开发地址，分别重新构建、安装并确认页面或启动状态，最终包未重新执行全部投递场景。
+
+验收使用超级管理员 `reviewadmin` 和 guest 角色的普通用户 `reviewuser`。通过 agent-browser 操作真实用户中心，API 读取状态并作断言。HTTPS 接收端为独立 webhook.site 测试地址，仅发送人工测试消息和测试账号的登录提醒，没有使用模拟 HTTP 交换函数代替本节投递证据。
+
+### 运行验收结果
+
+| 场景 | 实测结果 |
+| --- | --- |
+| 用户中心与普通用户权限 | “消息 → Webhook 通知”页面正常；真实浏览器保存成功，输入随后为空；桌面及 390 × 844 移动视口页面正常 |
+| 个人配置隔离及脱敏 | reviewuser 已配置时 reviewadmin 仍未配置；查询只返回 `https://webhook.site`，不泄露完整路径 |
+| 越权与非法地址 | 普通用户读取、保存他人配置均 403；保存 `https://127.0.0.1/hook` 为 400；匿名请求跳转登录（302） |
+| 通知偏好 | 原生“我的 → 通知配置”出现 Webhook 通道；站内通知与新设备登录可独立选择 |
+| 本插件消息 | 实际收到 JSON POST，`version=1`、recipient 为 reviewuser，标题及正文一致，Content-Type 为 application/json |
+| Halo 系统消息 | 以独立 Android User-Agent 实际登录触发“新设备登录”；接收端收到该通知，subject.kind 为 Device |
+| 关闭类型偏好 | 关闭站内通知的 Webhook 通道后，新测试任务仍 SENT，接收端请求总数不增加 |
+| 清除地址 | 重新开启通道但清除地址后，新任务仍 SENT，接收端请求总数不增加 |
+| 生成客户端及页面保存 | 从真实 OpenAPI 生成 UC 客户端；安装包含该客户端的最终 JAR，页面保存后新消息实际投递成功 |
+| 插件启停 | DISABLED → STARTED；Secret 中地址保留，重新启用后实际投递成功 |
+| 容器重启 | 重启后插件 STARTED、地址保留；接收端恢复 200 后新消息投递成功 |
+| 接收端失败隔离 | 接收端实际返回 503；站内消息仍 SENT 且已投递给 reviewuser，日志仅含用户名及 IllegalStateException |
+
+本地证据位于忽略提交的 `build/review-webhook/`：各场景的 `*-created.json`、接收端 `requests-*.json`、最终七个任务及系统事件断言 `runtime-assertions.json`、权限断言 `access-results.json`、启停 `lifecycle.json`、重启 `restarted.json`、失败 `remote-failure-result.json`、打包 `package-check.json`、构建及生成日志、用户中心截图。接收端共记录六次预期请求，每条应转发的消息各一次；关闭偏好和清除地址的两条消息没有转发。产品截图为 [用户中心配置页](webhook-user-center.png)。
+
+验收结束后通过真实用户中心清除了测试 Webhook 地址，并将站内通知及新设备登录的偏好恢复为邮件通道。review 容器保持运行，插件状态 STARTED；清理结果见 `cleanup.json`。
+
+关键可复查任务：页面保存后的 `sm-e52d6c387a39f33d34a0b397ce9cddaac7621286db4c1cfd84a4ff9c4bd62515`，接收端 503 的 `sm-6eaf88f1a7fbf959054dfe387413430252477e9b4686992bbde870eb4ebea56f`，重启恢复的 `sm-f35047cb864bea13caaed80da35fe7ddadd7bcef5dfcc0bccd2073ff33a7f7ca`。
+
+### 调试修复与验证边界
+
+- 实际安装发现 Halo 插件容器不提供 `WebClient.Builder` Bean；通知器改为自己创建和管理客户端，已重新安装并验证启动及真实投递。
+- Windows 下当前生成器解析 OpenAPI 3.1 文件会出现 URI 路径错误。隔离实例改用 `springdoc.api-docs.version: OPENAPI_3_0` 后，`generateApiClient -PhaloExternalUrl=http://localhost:8093` 成功。发布整理时仅将生成文件中的 BASE_PATH 恢复为原默认开发地址 8091；运行时客户端显式传入空 basePath，使用宿主同源请求。
+- 系统其他类型的真实投递验证使用“新设备登录”。评论和第三方插件通知沿用同一扩展点，本轮未逐一制造这些事件；直接写入 Notification 资源的消息不经过通知中心，不会触发此通道。
+- 本轮未配置 SMTP，未验证真实邮件投递。禁止重定向、响应大小及 DNS rebinding 防护由后端测试验证，未在公网接收端逐项制造攻击场景。
+
+构建提示：Gradle 弃用信息、Halo `JsonUtils` 的弃用信息及现有 Vue/Axios 与宿主共享依赖版本差异；均未导致检查失败，未升级依赖。
+
+## 2026-10-12 历史包安装验收
+
+日期：2026-10-12，时区 Asia/Shanghai。下列内容仅对应当时实际安装验证的 **1.0.1** 制品，不能作为 2026-10-14 新构建的运行证明。
 
 ## 制品与构建
 
@@ -69,11 +131,11 @@
 
 ## 再次提交前核对
 
-送审应使用上述实际安装并验收的同一个 JAR。提交前复查：
+当前 1.1.0 送审应使用本文顶部实际安装并验收的同一个 JAR。提交前复查：
 
 ```powershell
-Get-Item "build/libs/halo-plugin-site-notifications-1.0.1.jar" | Select-Object Name, Length
-Get-FileHash "build/libs/halo-plugin-site-notifications-1.0.1.jar" -Algorithm SHA256
+Get-Item "build/libs/halo-plugin-site-notifications-1.1.0.jar" | Select-Object Name, Length
+Get-FileHash "build/libs/halo-plugin-site-notifications-1.1.0.jar" -Algorithm SHA256
 ```
 
 如果重新构建，或改用 GitHub Actions / Release 下载的 JAR，应以实际送审文件重新核对摘要并完成安装验证，再更新本文，不能沿用其他构建的摘要和运行记录。Git 提交日期不是构建或测试时间；上述时间均为实际执行时间。

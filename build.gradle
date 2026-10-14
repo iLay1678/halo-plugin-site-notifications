@@ -41,7 +41,7 @@ tasks.named('generatePluginComponentsIdx') {
 
 halo {
     version = '2.26'
-    externalUrl = 'http://localhost:8091'
+    externalUrl = providers.gradleProperty('haloExternalUrl').getOrElse('http://localhost:8091')
 }
 
 haloPlugin {
@@ -50,7 +50,10 @@ haloPlugin {
         groupingRules {
             siteNotifications {
                 displayName = 'Site Notifications API'
-                pathsToMatch = ['/apis/console.api.site-notifications.halo.run/v1alpha1/**']
+                pathsToMatch = [
+                    '/apis/console.api.site-notifications.halo.run/v1alpha1/**',
+                    '/apis/api.site-notifications.halo.run/v1alpha1/**'
+                ]
             }
         }
         groupedApiMappings = ['/v3/api-docs/siteNotifications': 'site-notifications.json']
