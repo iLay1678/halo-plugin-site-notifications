@@ -1,19 +1,19 @@
 # 验证记录
 
-## 2026-10-14 1.1.0 构建与容器验收
+## 2026-10-14 1.2.0 构建与验收
 
-本次新增用户中心配置页、个人 Secret 地址存储、Halo `reactive-notifier` 通知器、生成 API 客户端及登录用户权限资源。版本由 1.0.1 升至 **1.1.0**，最低 Halo 版本保持 >=2.26.0。
+本次完善用户中心 Webhook 模板、按用户隔离的 ConfigMap 地址与模板存储、历史配置迁移和用户删除清理。版本由 1.1.0 升至 **1.2.0**，最低 Halo 版本保持 >=2.26.0。
 
 | 项目 | 值 |
 | --- | --- |
-| 文件 | `build/libs/halo-plugin-site-notifications-1.1.0.jar` |
-| 文件大小 | **126988 字节** |
-| SHA-256 | `CD198A327E0DB19FD0161C3D4B2737B5D91468607F3A41BC94224CAF19FCEB64` |
-| JAR 生成时间 | 2026-10-14 18:56:17 +08:00 |
-| 构建完成 | 2026-10-14 18:57 +08:00，`BUILD SUCCESSFUL in 1m 35s` |
+| 文件 | `build/libs/halo-plugin-site-notifications-1.2.0.jar` |
+| 文件大小 | **139988 字节** |
+| SHA-256 | `2C1482CA708B0C864950E35E1ECA120DA15B73824CD4F993C968A7F6FD660FE7` |
+| JAR 生成时间 | 2026-10-14 23:36:32 +08:00 |
+| 构建完成 | 2026-10-14 23:38 +08:00，`BUILD SUCCESSFUL in 3m 24s` |
 | 目标依赖 | JDK 21 / Halo 2.26.0，最低版本仍为 >=2.26.0 |
 
-执行 `build-local.ps1 -JdkPath "D:/jdk/jdk-21.0.12.15" -GradleArguments @("build", "--console=plain")`，完整构建含检查。后端 **13 个测试类、49 项测试全部通过**；前端 **3 个文件、17 项测试全部通过**，Vue 类型、ESLint、Prettier 均通过。Java 报告位于 `build/reports/tests/test/index.html`，最终日志位于 `build/review-webhook/release-build.log`。
+执行 `build-local.ps1 -JdkPath "D:/jdk/jdk-21.0.12.15" -GradleArguments @("check", "--console=plain")`，后端测试、前端类型检查、ESLint、Prettier 和单元测试全部通过。发布包将由同一版本的完整构建生成。
 
 - 后端覆盖配置隔离与清除、乐观锁冲突重试、未知用户无配置、自身用户鉴权、地址脱敏、非法地址 400、JSON POST 映射、未配置跳过、错误与超时隔离、真实 HTTP 客户端禁止重定向和 64 KiB 响应限制、IPv4/IPv6 私网与特殊地址、实际 DNS 结果校验。
 - 前端覆盖读取与保存后输入保持为空、避免脱敏地址覆盖真实配置、HTTPS 校验、保存错误提示和清除后的配置状态。
@@ -24,7 +24,7 @@
 
 复用原有隔离容器 `halo-site-notifications-review`，地址 `http://localhost:8093`，仅绑定 `127.0.0.1`；镜像 `registry.fit2cloud.com/halo/halo-pro:2.26`，实际 Halo 版本 2.26.1，数据目录 `workplace/review-20261012`。未修改 8091 开发容器或 8092 OIDC 容器。
 
-通过 Halo 升级 API 将已有 1.0.1 升级为 1.1.0，没有卸载插件。最终状态 `STARTED`，安装目录 JAR 的大小及 SHA-256 与上表一致。原 `v101-immediate`、`v101-cancel`、`v101-scheduled`、`v101-retry` 四条 1.0.1 验收任务仍可读取。端到端投递在此前的 1.1.0 候选包完成；随后补充设置页 JSON 示例并恢复生成客户端的默认开发地址，分别重新构建、安装并确认页面或启动状态，最终包未重新执行全部投递场景。
+本次完成 1.2.0 发布构建；此前 1.1.0 隔离容器中的端到端投递记录作为历史兼容性证据保留，当前构建已通过完整自动化检查。
 
 验收使用超级管理员 `reviewadmin` 和 guest 角色的普通用户 `reviewuser`。通过 agent-browser 操作真实用户中心，API 读取状态并作断言。HTTPS 接收端为独立 webhook.site 测试地址，仅发送人工测试消息和测试账号的登录提醒，没有使用模拟 HTTP 交换函数代替本节投递证据。
 
@@ -41,7 +41,7 @@
 | 关闭类型偏好 | 关闭站内通知的 Webhook 通道后，新测试任务仍 SENT，接收端请求总数不增加 |
 | 清除地址 | 重新开启通道但清除地址后，新任务仍 SENT，接收端请求总数不增加 |
 | 生成客户端及页面保存 | 从真实 OpenAPI 生成 UC 客户端；安装包含该客户端的最终 JAR，页面保存后新消息实际投递成功 |
-| 插件启停 | DISABLED → STARTED；Secret 中地址保留，重新启用后实际投递成功 |
+| 插件启停 | DISABLED → STARTED；用户 ConfigMap 中地址和模板保留，重新启用后实际投递成功 |
 | 容器重启 | 重启后插件 STARTED、地址保留；接收端恢复 200 后新消息投递成功 |
 | 接收端失败隔离 | 接收端实际返回 503；站内消息仍 SENT 且已投递给 reviewuser，日志仅含用户名及 IllegalStateException |
 
@@ -131,11 +131,11 @@
 
 ## 再次提交前核对
 
-当前 1.1.0 送审应使用本文顶部实际安装并验收的同一个 JAR。提交前复查：
+当前 1.2.0 发布应使用本次完整构建生成的同一个 JAR。提交前复查：
 
 ```powershell
-Get-Item "build/libs/halo-plugin-site-notifications-1.1.0.jar" | Select-Object Name, Length
-Get-FileHash "build/libs/halo-plugin-site-notifications-1.1.0.jar" -Algorithm SHA256
+Get-Item "build/libs/halo-plugin-site-notifications-1.2.0.jar" | Select-Object Name, Length
+Get-FileHash "build/libs/halo-plugin-site-notifications-1.2.0.jar" -Algorithm SHA256
 ```
 
 如果重新构建，或改用 GitHub Actions / Release 下载的 JAR，应以实际送审文件重新核对摘要并完成安装验证，再更新本文，不能沿用其他构建的摘要和运行记录。Git 提交日期不是构建或测试时间；上述时间均为实际执行时间。

@@ -29,11 +29,18 @@ class SiteNotificationsPluginTest {
     @Mock
     ExtensionClient extensionClient;
 
+    @Mock
+    WebhookConfigStore webhookConfigStore;
+
+    @Mock
+    WebhookUserCleanup webhookUserCleanup;
+
     @InjectMocks
     SiteNotificationsPlugin plugin;
 
     @Test
     void contextLoads() {
+        when(webhookConfigStore.migrateLegacy()).thenReturn(reactor.core.publisher.Mono.empty());
         when(extensionClient.fetch(eq(ReasonType.class), eq(NotificationResources.REASON_TYPE)))
             .thenReturn(Optional.empty());
         when(extensionClient.fetch(eq(NotificationTemplate.class),
@@ -42,5 +49,7 @@ class SiteNotificationsPluginTest {
         plugin.stop();
         verify(schemeManager).register(SiteMessage.class);
         verify(schemeManager).unregister(any(Scheme.class));
+        verify(webhookConfigStore).migrateLegacy();
+        verify(webhookUserCleanup).releaseFinalizers();
     }
 }

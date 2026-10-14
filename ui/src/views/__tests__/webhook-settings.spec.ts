@@ -30,7 +30,7 @@ function render() {
     global: {
       stubs: {
         FormKit: {
-          props: ['modelValue'],
+          props: ['modelValue', 'type'],
           emits: ['update:modelValue'],
           template:
             '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
@@ -44,10 +44,10 @@ describe('用户 Webhook 配置', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     http.getWebhookConfig.mockResolvedValue({
-      data: { configured: true, url: 'https://example.com' },
+      data: { configured: true, url: 'https://example.com', template: '{"text":"{{title}}"}' },
     })
     http.saveWebhookConfig.mockResolvedValue({
-      data: { configured: true, url: 'https://example.com' },
+      data: { configured: true, url: 'https://example.com', template: '{"text":"{{title}}"}' },
     })
     http.clearWebhookConfig.mockResolvedValue({ data: { configured: false } })
   })
@@ -59,16 +59,25 @@ describe('用户 Webhook 配置', () => {
     expect(wrapper.text()).toContain('当前已配置 Webhook')
     expect(wrapper.text()).toContain('"version": "1"')
     expect(wrapper.text()).toContain('"recipient": "alice"')
-    await wrapper.get('input').setValue('https://example.com/hooks/secret?key=token')
+    await wrapper.findAll('input')[0]!.setValue('https://example.com/hooks/secret?key=token')
     await wrapper.findAll('button')[1]!.trigger('click')
     await flushPromises()
     expect(http.saveWebhookConfig).toHaveBeenCalledWith({
       username: 'alice',
-      webhookRequest: { url: 'https://example.com/hooks/secret?key=token' },
+      webhookRequest: {
+        url: 'https://example.com/hooks/secret?key=token',
+        template: '{"text":"{{title}}"}',
+      },
     })
-    expect(wrapper.get('input').element.value).toBe('')
+    expect(wrapper.findAll('input')[0]!.element.value).toBe('')
+    expect(wrapper.findAll('input')[1]!.element.value).toBe('{"text":"{{title}}"}')
+    await wrapper.findAll('input')[1]!.setValue('{"text":"{{rawBody}}"}')
     await wrapper.findAll('button')[1]!.trigger('click')
-    expect(http.saveWebhookConfig).toHaveBeenCalledTimes(1)
+    await flushPromises()
+    expect(http.saveWebhookConfig).toHaveBeenLastCalledWith({
+      username: 'alice',
+      webhookRequest: { url: undefined, template: '{"text":"{{rawBody}}"}' },
+    })
     wrapper.unmount()
   })
 
@@ -95,6 +104,16 @@ describe('用户 Webhook 配置', () => {
     expect(http.clearWebhookConfig).toHaveBeenCalledWith({ username: 'alice' })
     expect(wrapper.text()).not.toContain('当前已配置 Webhook')
     expect(wrapper.findAll('button')[0]!.attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('无效 JSON 模板不会提交', async () => {
+    const wrapper = render()
+    await flushPromises()
+    await wrapper.findAll('input')[1]!.setValue('{invalid')
+    await wrapper.findAll('button')[1]!.trigger('click')
+    expect(http.saveWebhookConfig).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('合法的 JSON')
     wrapper.unmount()
   })
 })

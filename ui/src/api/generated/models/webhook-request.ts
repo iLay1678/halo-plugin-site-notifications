@@ -26,5 +26,8 @@ export interface WebhookRequest {
      * @memberof WebhookRequest
      */
     'url'?: string;
+    /**
+     * JSON 请求正文模板，支持 {{placeholder}} 占位符。
+     */
+    'template'?: string;
 }
-

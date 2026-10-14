@@ -4,6 +4,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -36,10 +38,12 @@ class WebhookEndpointTest {
 
     @Test
     void hidesCredentialsInPathQueryAndFragmentFromResponse() {
-        when(store.fetch("alice")).thenReturn(Mono.just("https://example.com/token/secret?key=private"));
+        when(store.fetch("alice")).thenReturn(Mono.just(new WebhookConfig(
+            "https://example.com/token/secret?key=private", "{\"title\":\"{{title}}\"}")));
         http("alice").get().uri("/userspaces/alice/webhook").exchange().expectStatus().isOk()
             .expectBody().jsonPath("$.configured").isEqualTo(true)
-            .jsonPath("$.url").isEqualTo("https://example.com");
+            .jsonPath("$.url").isEqualTo("https://example.com")
+            .jsonPath("$.template").isEqualTo("{\"title\":\"{{title}}\"}");
     }
 
     @Test
@@ -56,7 +60,7 @@ class WebhookEndpointTest {
 
     @Test
     void invalidDestinationReturnsBadRequest() {
-        when(store.save("alice", "http://example.com"))
+        when(store.save(eq("alice"), eq("http://example.com"), any()))
             .thenReturn(Mono.error(new IllegalArgumentException("地址无效")));
         http("alice").put().uri("/userspaces/alice/webhook")
             .contentType(MediaType.APPLICATION_JSON).bodyValue("{\"url\":\"http://example.com\"}")

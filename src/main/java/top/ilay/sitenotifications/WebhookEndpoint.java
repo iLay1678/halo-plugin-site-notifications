@@ -47,8 +47,8 @@ public class WebhookEndpoint implements CustomEndpoint {
 
     private Mono<ServerResponse> get(ServerRequest request) {
         return currentUser(request).flatMap(username -> configStore.fetch(username)
-            .map(url -> new WebhookResponse(true, redact(url)))
-            .defaultIfEmpty(new WebhookResponse(false, null)))
+            .map(config -> new WebhookResponse(true, redact(config.url()), config.template()))
+            .defaultIfEmpty(new WebhookResponse(false, null, null)))
             .flatMap(value -> ServerResponse.ok().bodyValue(value));
     }
 
@@ -56,8 +56,12 @@ public class WebhookEndpoint implements CustomEndpoint {
         return currentUser(request)
             .flatMap(username -> request.bodyToMono(WebhookRequest.class)
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "请求正文不能为空")))
-                .flatMap(body -> configStore.save(username, body.url())
-                    .thenReturn(new WebhookResponse(true, redact(body.url())))))
+                .flatMap(body -> WebhookTemplate.validate(body.template())
+                    .onErrorMap(IllegalArgumentException.class, error ->
+                        new ResponseStatusException(HttpStatus.BAD_REQUEST, error.getMessage()))
+                    .then(Mono.defer(() -> configStore.save(username, body.url(), body.template())))
+                    .then(Mono.defer(() -> configStore.fetch(username)))
+                    .map(config -> new WebhookResponse(true, redact(config.url()), config.template()))))
             .onErrorMap(IllegalArgumentException.class, error ->
                 new ResponseStatusException(HttpStatus.BAD_REQUEST, "Webhook 地址无效，请使用公网 HTTPS 地址和标准端口"))
             .flatMap(value -> ServerResponse.ok().bodyValue(value));
@@ -65,7 +69,7 @@ public class WebhookEndpoint implements CustomEndpoint {
 
     private Mono<ServerResponse> clear(ServerRequest request) {
         return currentUser(request).flatMap(username -> configStore.clear(username))
-            .thenReturn(new WebhookResponse(false, null))
+            .thenReturn(new WebhookResponse(false, null, null))
             .flatMap(value -> ServerResponse.ok().bodyValue(value));
     }
 
@@ -89,10 +93,10 @@ public class WebhookEndpoint implements CustomEndpoint {
         }
     }
 
-    public record WebhookRequest(String url) {
+    public record WebhookRequest(String url, String template) {
     }
 
-    public record WebhookResponse(boolean configured, String url) {
+    public record WebhookResponse(boolean configured, String url, String template) {
     }
 
     @Override

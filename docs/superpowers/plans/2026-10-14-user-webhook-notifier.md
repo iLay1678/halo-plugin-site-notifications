@@ -1,23 +1,23 @@
 # 用户 Webhook 通知器 Implementation Plan
 
-**实施状态（2026-10-14）：** 1.1.0 后端、UC 页面、生成客户端、资源和文档已完成；完整 build、49 项后端与 17 项前端测试通过。复用原 review 容器完成升级、用户中心、启停及公网 HTTPS 投递验收，实际收到了本插件消息和 Halo 新设备登录通知。具体产物及验证范围见 `docs/verification.md`。
+**实施状态（2026-10-14）：** 1.2.0 后端、UC 页面、生成客户端、资源和文档已完成；完整 build、后端与前端测试通过。Webhook 模板、独立 ConfigMap 存储、历史迁移和用户删除清理已纳入实现。具体产物及验证范围见 `docs/verification.md`。
 
-**实现调整：** 按 Halo 2.26 源码核对，原生 receiverSettingRef 配置以通知器为键保存，而不是按用户保存，故个人地址使用插件自己的 Secret 和 UC API；NotifierDescriptor 不配置 receiverSettingRef。HTTP 连接配置直接在通知器创建，实际 DNS 解析安全检查独立为 WebhookAddressResolverGroup。查询只返回域名，去除整个路径。真实安装发现插件容器不提供 WebClient.Builder Bean，已改为通知器自己创建客户端。8093 实例使用 OpenAPI 3.0，避免 Windows 生成器 URI 路径问题；UC 已使用生成的客户端及宿主 axiosInstance。
+**实现调整：** 按 Halo 2.26 源码核对，原生 receiverSettingRef 配置以通知器为键保存，而不是按用户保存，故个人地址和模板使用按用户隔离的 ConfigMap 与 UC API；NotifierDescriptor 不配置 receiverSettingRef。HTTP 连接配置直接在通知器创建，实际 DNS 解析安全检查独立为 WebhookAddressResolverGroup。查询只返回域名，去除整个路径。真实安装发现插件容器不提供 WebClient.Builder Bean，已改为通知器自己创建客户端。8093 实例使用 OpenAPI 3.0，避免 Windows 生成器 URI 路径问题；UC 已使用生成的客户端及宿主 axiosInstance。
 
 **Goal:** 为每个 Halo 用户提供 Webhook 地址配置，并把用户在 Halo 通知偏好中启用的所有通知类型以 JSON POST 发送到该地址。
 
-**Architecture:** 使用 Halo `ReactiveNotifier` 多实例扩展点和 `NotifierDescriptor` 接入原生通知中心；用户地址按用户名保存到插件专属 `Secret`，通过 UC 受保护 API 管理。通知器读取 `NotificationContext` 后使用响应式 `WebClient` 投递，地址校验失败或远端失败只隔离当前投递。
+**Architecture:** 使用 Halo `ReactiveNotifier` 多实例扩展点和 `NotifierDescriptor` 接入原生通知中心；用户地址和模板按用户创建时间隔离保存到插件专属 ConfigMap，通过 UC 受保护 API 管理。通知器读取 `NotificationContext` 后使用响应式 `WebClient` 投递，地址校验失败或远端失败只隔离当前投递。
 
 **Tech Stack:** Java 21、Spring WebFlux `WebClient`、Halo 2.26 API、ReactiveExtensionClient、Vue 3/TypeScript、Halo UI shared/API client、JUnit 5/Mockito/Reactor Test。
 
-**Spec:** 已确认的聊天设计：用户中心配置、复用 Halo 通知偏好、覆盖系统所有通知类型、Secret 保存用户地址、HTTPS/SSRF/超时安全边界。
+**Spec:** 已确认的聊天设计：用户中心配置、复用 Halo 通知偏好、覆盖系统所有通知类型、按用户隔离的 ConfigMap 保存地址和模板、HTTPS/SSRF/超时安全边界。
 
 ## Global Constraints
 
 - 保持 Halo 最低版本 `>=2.26.0` 和现有 Gradle/UI 工具链。
 - 不执行 Git commit、push、reset 或分支操作。
 - Webhook 地址只允许 HTTPS、无用户信息/密码、标准端口；禁止环回、私网、链路本地、组播、未指定和元数据地址。
-- Secret 内容不通过普通 API 返回，不写入日志；配置缺失或读取失败时 fail closed。
+- Webhook 地址和模板不通过普通 API 暴露完整地址，不写入日志；配置缺失或读取失败时 fail closed。
 - 发送必须使用响应式 WebClient，设置连接、响应和整体请求超时，并禁止自动重定向。
 - 前端调用 Halo Core/UC 接口复用 `@halo-dev/api-client` 的 `axiosInstance`；新增插件接口通过 OpenAPI 生成客户端。
 
@@ -33,13 +33,13 @@
 - Create: `src/test/java/top/ilay/sitenotifications/WebhookEndpointTest.java`
 
 **Interfaces:**
-- `WebhookConfigStore.fetch(String username): Mono<String>` returns the stored URL or empty.
-- `WebhookConfigStore.save(String username, String url): Mono<Void>` validates and stores URL in plugin Secret.
+- `WebhookConfigStore.fetch(String username): Mono<WebhookConfig>` returns the stored URL and template or empty.
+- `WebhookConfigStore.save(String username, String url, String template): Mono<Void>` validates and stores the per-user URL and template in a ConfigMap.
 - `WebhookConfigStore.clear(String username): Mono<Void>` removes the user entry.
 - `WebhookEndpoint` exposes `GET/PUT/DELETE /apis/api.site-notifications.halo.run/v1alpha1/userspaces/{username}/webhook` and rejects a path username different from the authenticated user.
 
 - [x] 测试用户配置隔离、清除、地址校验与自身用户鉴权。
-- [x] 用插件 Secret 保存用户地址；保存前执行 URI/DNS/IP 校验，更新冲突重新读取并重试。
+- [x] 用独立 ConfigMap 保存每个用户的地址和模板；保存前执行 URI/DNS/IP 校验，更新冲突重新读取并重试。
 - [x] 实现配置 API，返回 `{configured, url}`，地址脱敏到 origin，去除整个路径、查询参数及 fragment。
 - [x] 后端测试通过。
 

@@ -60,8 +60,9 @@ public class WebhookNotifier implements ReactiveNotifier {
         }
         var username = context.getMessage().getRecipient();
         return Mono.defer(() -> configStore.fetch(username))
-            .flatMap(WebhookUrlValidator::validate)
-            .flatMap(uri -> send(uri, WebhookPayload.from(context)))
+            .flatMap(config -> WebhookUrlValidator.validate(config.url())
+                .zipWith(Mono.fromCallable(() -> WebhookTemplate.render(context, config.template()))))
+            .flatMap(result -> send(result.getT1(), result.getT2()))
             .timeout(REQUEST_TIMEOUT)
             .onErrorResume(error -> {
                 log.warn("Webhook notification skipped for user [{}] ({})", username,
@@ -70,11 +71,11 @@ public class WebhookNotifier implements ReactiveNotifier {
             });
     }
 
-    private Mono<Void> send(URI uri, WebhookPayload payload) {
+    private Mono<Void> send(URI uri, String body) {
         return webClient.post()
             .uri(uri)
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(payload)
+            .bodyValue(body)
             .retrieve()
             .onStatus(status -> !status.is2xxSuccessful(), response ->
                 Mono.error(new IllegalStateException("Webhook 接收端返回非成功状态")))

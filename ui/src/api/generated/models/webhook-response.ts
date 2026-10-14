@@ -32,5 +32,8 @@ export interface WebhookResponse {
      * @memberof WebhookResponse
      */
     'url'?: string;
+    /**
+     * JSON 请求正文模板。
+     */
+    'template'?: string;
 }
-

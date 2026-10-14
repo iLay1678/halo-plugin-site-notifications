@@ -121,7 +121,7 @@
 
 `subject` 与 `attributes` 由通知来源提供，不同通知类型可能不同。接收端应返回 2xx；此功能投递失败只记录错误类型，不阻断其他通知通道，也不自动重试。
 
-地址仅允许 HTTPS、443 标准端口，禁止用户名/密码及 fragment，最多 4096 字符；拒绝本机、私网、链路本地、组播、云元数据等地址，并检查实际连接的全部 DNS 结果。请求不跟随重定向，连接超时 5 秒、整体超时 10 秒，响应正文最多 64 KiB。完整地址保存在插件专属 Secret 中，查询不会返回路径或令牌，用户只能管理自己的配置。
+地址仅允许 HTTPS、443 标准端口，禁止用户名/密码及 fragment，最多 4096 字符；拒绝本机、私网、链路本地、组播、云元数据等地址，并检查实际连接的全部 DNS 结果。请求不跟随重定向，连接超时 5 秒、整体超时 10 秒，响应正文最多 64 KiB。地址和模板按用户创建时间隔离保存在独立 ConfigMap 中，不使用用户名作为资源身份；删除用户时由用户清理控制器删除对应配置，避免同名用户复用旧配置。
 
 ### 指定发送时间
 
@@ -178,7 +178,7 @@ macOS / Linux 安装 JDK 21，并确保 `JAVA_HOME` 指向该 JDK 后执行：
 
 GitHub Actions 通过工作流的 `java-version: 21` 安装 JDK，Gradle 使用 Runner 提供的 JDK，无需配置本地路径。
 
-当前版本为 **1.1.0**，产物为 `build/libs/halo-plugin-site-notifications-1.1.0.jar`，包含后端、插件清单及 ESM 控制台和用户中心资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
+当前版本为 **1.2.0**，产物为 `build/libs/halo-plugin-site-notifications-1.2.0.jar`，包含后端、插件清单及 ESM 控制台和用户中心资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
 
 业务 Java 包为 `top.ilay.sitenotifications`，根 Gradle group 为 `top.ilay`。送审时请使用完成安装与功能验收的同一个 JAR，并将实际文件大小、SHA-256 和运行结果更新到 [验证记录](docs/verification.md)；重新构建或改用 CI 制品后需要重新核对。
 
@@ -237,7 +237,7 @@ halo-plugin-site-notifications/
 └── build.gradle                             # Halo 依赖及打包配置
 ```
 
-后端按请求校验、接收人解析、任务服务、鉴权和投递拆分职责；Webhook 按地址校验、Secret 存储、用户 API 和通知器拆分，复用 Halo 原生通知偏好。控制台及用户中心复用 Halo FormKit 与宿主组件，收件箱沿用原生消息。构建检查和独立实例验证范围见 [验证记录](docs/verification.md)。
+后端按请求校验、接收人解析、任务服务、鉴权和投递拆分职责；Webhook 按地址校验、ConfigMap 存储、用户 API 和通知器拆分，复用 Halo 原生通知偏好。控制台及用户中心复用 Halo FormKit 与宿主组件，收件箱沿用原生消息。构建检查和独立实例验证范围见 [验证记录](docs/verification.md)。
 
 ## 管理 API
 
@@ -274,7 +274,7 @@ halo-plugin-site-notifications/
 
 ### 用户 Webhook API
 
-基础路径为 `/apis/api.site-notifications.halo.run/v1alpha1/userspaces/{username}/webhook`。GET 读取配置状态和脱敏后的域名，PUT 使用 `{"url":"https://example.com/hook"}` 保存，DELETE 清除。登录用户只能访问与本人用户名一致的路径，无效地址返回 400，越权访问返回 403；用户权限不包含 Secret 的直接读取权限。
+基础路径为 `/apis/api.site-notifications.halo.run/v1alpha1/userspaces/{username}/webhook`。GET 读取配置状态、脱敏后的域名和已保存模板，PUT 使用 `{"url":"https://example.com/hook","template":"{\"title\":\"{{title}}\"}"}` 保存，DELETE 清除。登录用户只能访问与本人用户名一致的路径，无效地址或模板返回 400，越权访问返回 403。插件启动时会把旧版本共享 Secret 中可匹配当前用户的地址和模板迁移到独立 ConfigMap，迁移未完成时保留旧数据等待下次启动。
 
 ## 常见问题
 

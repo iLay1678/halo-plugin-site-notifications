@@ -50,7 +50,7 @@ class WebhookNotifierTest {
     @Test
     void sendsJsonPostToTheRecipientsConfiguredDestination() {
         var destination = URI.create("https://8.8.8.8/hook?token=secret");
-        when(store.fetch("alice")).thenReturn(Mono.just(destination.toString()));
+        when(store.fetch("alice")).thenReturn(Mono.just(new WebhookConfig(destination.toString(), null)));
         var capturedBody = new AtomicReference<String>();
         var capturedError = new AtomicReference<Throwable>();
         var notifier = notifier(request -> {
@@ -95,7 +95,7 @@ class WebhookNotifierTest {
         });
         StepVerifier.create(notifier.notify(context())).verifyComplete();
         assertEquals(0, requests.get());
-        when(store.fetch("alice")).thenReturn(Mono.just("https://8.8.8.8/hook"));
+        when(store.fetch("alice")).thenReturn(Mono.just(new WebhookConfig("https://8.8.8.8/hook", null)));
         StepVerifier.create(notifier.notify(context())).verifyComplete();
         assertEquals(1, requests.get());
         notifier.close();
@@ -103,7 +103,7 @@ class WebhookNotifierTest {
 
     @Test
     void responseErrorsAndTimeoutAreIsolated() {
-        when(store.fetch("alice")).thenReturn(Mono.just("https://8.8.8.8/hook"));
+        when(store.fetch("alice")).thenReturn(Mono.just(new WebhookConfig("https://8.8.8.8/hook", null)));
         var notifier = notifier(request -> Mono.error(new DataBufferLimitException("响应过大")));
         StepVerifier.create(notifier.notify(context())).verifyComplete();
         notifier.close();

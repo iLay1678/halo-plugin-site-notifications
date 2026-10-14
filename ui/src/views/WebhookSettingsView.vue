@@ -9,6 +9,7 @@ const loading = ref(true)
 const saving = ref(false)
 const configured = ref(false)
 const url = ref('')
+const template = ref('')
 const error = ref('')
 const username = computed(() => userStore.currentUser?.user.metadata.name)
 
@@ -20,6 +21,7 @@ async function load() {
     const { data } = await webhookApi.getWebhookConfig({ username: username.value })
     configured.value = Boolean(data.configured)
     url.value = ''
+    template.value = data.template ?? ''
   } catch {
     error.value = '无法读取 Webhook 配置，请刷新后重试。'
   } finally {
@@ -30,21 +32,31 @@ async function load() {
 async function save() {
   if (!username.value || saving.value) return
   error.value = ''
-  if (!/^https:\/\/[^\s]+$/i.test(url.value.trim())) {
+  if ((!configured.value || url.value.trim()) && !/^https:\/\/[^\s]+$/i.test(url.value.trim())) {
     error.value = '请输入有效的 HTTPS Webhook 地址。'
     return
+  }
+  if (template.value.trim()) {
+    try {
+      const parsed = JSON.parse(template.value)
+      if (parsed === null || typeof parsed !== 'object') throw new Error('invalid')
+    } catch {
+      error.value = '请求正文模板必须是合法的 JSON 对象或数组。'
+      return
+    }
   }
   saving.value = true
   try {
     const { data } = await webhookApi.saveWebhookConfig({
       username: username.value,
-      webhookRequest: { url: url.value.trim() },
+      webhookRequest: { url: url.value.trim() || undefined, template: template.value.trim() },
     })
     configured.value = Boolean(data.configured)
     url.value = ''
+    template.value = data.template ?? ''
     Toast.success('Webhook 配置已保存')
   } catch {
-    error.value = '保存失败。地址必须是可访问的 HTTPS 地址，且不能指向本机或内网。'
+    error.value = '保存失败。请检查公网 HTTPS 地址、JSON 模板和占位符名称。'
   } finally {
     saving.value = false
   }
@@ -58,6 +70,7 @@ async function clear() {
     await webhookApi.clearWebhookConfig({ username: username.value })
     configured.value = false
     url.value = ''
+    template.value = ''
     Toast.success('Webhook 配置已清除')
   } catch {
     error.value = '清除失败，请重试。'
@@ -91,11 +104,27 @@ watch(username, load, { immediate: true })
           :disabled="saving"
         />
         <p v-if="configured" class="text-sm text-green-600">
-          当前已配置 Webhook。再次保存时请输入新的地址。
+          当前已配置 Webhook。地址留空可保留原地址，只更新正文模板。
         </p>
         <p class="text-xs text-gray-500">
           仅允许 HTTPS 地址。插件会在服务端检查目标地址，拒绝本机、内网和云元数据地址。请求正文为
           JSON。
+        </p>
+        <FormKit
+          v-model="template"
+          type="textarea"
+          label="请求正文模板（可选）"
+          :disabled="saving"
+          placeholder='{"title":"{{title}}","content":"{{rawBody}}"}'
+          rows="8"
+        />
+        <p v-pre class="text-xs text-gray-500">
+          留空使用下方默认 JSON。占位符写在 JSON 字符串值中，可用 {{ title }}、{{ rawBody }}、{{
+            htmlBody
+          }}、{{ recipient }}、{{ timestamp }}、{{ subject }}、{{ subject.name }}、{{
+            subject.url
+          }}、{{ attributes }} 和 {{ attributes.key }}。 完整占位符作为值时保留 JSON
+          类型；缺失字段为 null，拼接文本中为空字符串。
         </p>
         <div class="rounded-md bg-gray-50 p-3">
           <h3 class="text-sm font-medium text-gray-700">通知 JSON 格式</h3>
