@@ -119,12 +119,10 @@ watch(username, load, { immediate: true })
           rows="8"
         />
         <p v-pre class="text-xs text-gray-500">
-          留空使用下方默认 JSON。占位符写在 JSON 字符串值中，可用 {{ title }}、{{ rawBody }}、{{
-            htmlBody
-          }}、{{ recipient }}、{{ timestamp }}、{{ subject }}、{{ subject.name }}、{{
-            subject.url
-          }}、{{ attributes }} 和 {{ attributes.key }}。 完整占位符作为值时保留 JSON
-          类型；缺失字段为 null，拼接文本中为空字符串。
+          留空使用下方默认 JSON。占位符写在 JSON 字符串值中，可用
+          &#123;&#123;title&#125;&#125;、&#123;&#123;rawBody&#125;&#125;、&#123;&#123;htmlBody&#125;&#125;、&#123;&#123;recipient&#125;&#125;、&#123;&#123;timestamp&#125;&#125;、&#123;&#123;subject&#125;&#125;、&#123;&#123;subject.name&#125;&#125;、&#123;&#123;subject.url&#125;&#125;、&#123;&#123;attributes&#125;&#125;
+          和 &#123;&#123;attributes.key&#125;&#125;。完整占位符作为值时保留 JSON 类型；缺失字段为
+          null，拼接文本中为空字符串。
         </p>
         <div class="rounded-md bg-gray-50 p-3">
           <h3 class="text-sm font-medium text-gray-700">通知 JSON 格式</h3>
