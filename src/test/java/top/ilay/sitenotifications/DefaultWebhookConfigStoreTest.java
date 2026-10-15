@@ -16,7 +16,6 @@ import run.halo.app.extension.ConfigMap;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.Secret;
-import run.halo.app.infra.utils.JsonUtils;
 
 class DefaultWebhookConfigStoreTest {
     private final ReactiveExtensionClient client = mock(ReactiveExtensionClient.class);
@@ -57,6 +56,22 @@ class DefaultWebhookConfigStoreTest {
             return input;
         }));
         return new DefaultWebhookConfigStore(client);
+    }
+
+    @Test
+    void storesAllRequestOptionsInOneConfigMapWithoutCreatingSecret() {
+        users.put("alice", user("alice", "2026-01-01T00:00:00Z"));
+        var store = store();
+        var headers = Map.of("Authorization", "Bearer test", "X-Test", "value");
+        store.save("alice", "https://8.8.8.8/hook", "PATCH", "{}", headers).block();
+        assertEquals(new WebhookConfig("https://8.8.8.8/hook", "PATCH", "{}", headers), store.fetch("alice").block());
+        var data = maps.values().iterator().next().getData();
+        assertTrue(data.get("headers").contains("Bearer test"));
+        assertEquals("PATCH", data.get("method"));
+        verify(client, never()).create(any(Secret.class));
+        store.save("alice", "https://8.8.8.8/hook", "GET", null, Map.of()).block();
+        assertTrue(store.fetch("alice").block().headers().isEmpty());
+        assertFalse(maps.values().iterator().next().getData().containsKey("headers"));
     }
 
     @Test

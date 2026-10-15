@@ -17,7 +17,6 @@ import run.halo.app.extension.ConfigMap;
 import run.halo.app.extension.Metadata;
 import run.halo.app.extension.ReactiveExtensionClient;
 import run.halo.app.extension.Secret;
-import run.halo.app.infra.utils.JsonUtils;
 
 /** 每个账户使用独立 ConfigMap；创建时间隔离同名新账户。 */
 @Component
@@ -35,19 +34,24 @@ final class DefaultWebhookConfigStore implements WebhookConfigStore {
     }
 
     @Override
-    public Mono<Void> save(String username, String url, String template) {
+    public Mono<Void> save(String username, String url, String method, String template,
+        Map<String, String> headers) {
         return WebhookTemplate.validate(template)
             .then(Mono.defer(() -> currentUser(username)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("用户不存在或已删除")))
                 .flatMap(user -> {
                     var config = new WebhookConfig(url == null || url.isBlank() ? null : url.trim(),
-                        template == null || template.isBlank() ? null : template);
+                        method,
+                        template == null || template.isBlank() ? null : template,
+                        headers);
                     return client.fetch(ConfigMap.class, configMapName(user))
                         .filter(RecipientService::active)
                         .flatMap(existing -> {
-                            var destination = config.url() == null ? configFrom(existing).url() : config.url();
+                            var previous = configFrom(existing);
+                            var destination = config.url() == null ? previous.url() : config.url();
                             return WebhookUrlValidator.validate(destination).then(Mono.defer(() -> {
-                                existing.setData(data(new WebhookConfig(destination, config.template())));
+                                existing.setData(data(new WebhookConfig(destination, config.method(),
+                                    config.template(), config.headers())));
                                 return client.update(existing);
                             }));
                         })
@@ -96,7 +100,7 @@ final class DefaultWebhookConfigStore implements WebhookConfigStore {
             var entries = legacyEntries(secret);
             entries.remove(username);
             if (secret.getStringData() == null) secret.setStringData(new HashMap<>());
-            secret.getStringData().put(LEGACY_DATA_KEY, JsonUtils.objectToJson(entries));
+            secret.getStringData().put(LEGACY_DATA_KEY, WebhookJson.write(entries));
             return client.update(secret).then();
         })).retryWhen(conflictRetry());
     }
@@ -141,26 +145,31 @@ final class DefaultWebhookConfigStore implements WebhookConfigStore {
     private static Map<String, String> data(WebhookConfig config) {
         var data = new HashMap<String, String>();
         data.put("url", config.url());
+        data.put("method", config.method());
         if (config.template() != null) data.put("template", config.template());
+        if (!config.headers().isEmpty()) data.put("headers", WebhookJson.write(config.headers()));
         return data;
     }
 
     private static WebhookConfig configFrom(ConfigMap map) {
         var data = map.getData();
-        return data == null || data.get("url") == null || data.get("url").isBlank()
-            ? null : new WebhookConfig(data.get("url"), data.get("template"));
+        if (data == null || data.get("url") == null || data.get("url").isBlank()) return null;
+        return new WebhookConfig(data.get("url"), data.get("method"),
+            data.get("template"), data.get("headers") == null ? Map.of()
+                : WebhookJson.read(data.get("headers"), new TypeReference<Map<String, String>>() {}));
     }
 
     private static Map<String, Object> legacyEntries(Secret secret) {
         var value = secret.getStringData() == null ? null : secret.getStringData().get(LEGACY_DATA_KEY);
         return value == null || value.isBlank() ? new HashMap<>()
-            : new HashMap<>(JsonUtils.jsonToObject(value, new TypeReference<Map<String, Object>>() {}));
+            : new HashMap<>(WebhookJson.read(value, new TypeReference<Map<String, Object>>() {}));
     }
 
     private static WebhookConfig legacyConfig(Object value) {
-        if (value instanceof String url && !url.isBlank()) return new WebhookConfig(url, null);
+        if (value instanceof String url && !url.isBlank()) return new WebhookConfig(url, "POST", null, Map.of());
         if (value instanceof Map<?, ?> config && config.get("url") instanceof String url && !url.isBlank()) {
-            return new WebhookConfig(url, config.get("template") instanceof String text ? text : null);
+            return new WebhookConfig(url, "POST", config.get("template") instanceof String text ? text : null,
+                Map.of());
         }
         throw new IllegalArgumentException("历史 Webhook 数据格式无效");
     }

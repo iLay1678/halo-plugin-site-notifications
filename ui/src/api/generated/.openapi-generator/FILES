@@ -31,3 +31,4 @@ models/user-candidate-list.ts
 models/user-candidate.ts
 models/webhook-request.ts
 models/webhook-response.ts
+models/webhook-test-response.ts

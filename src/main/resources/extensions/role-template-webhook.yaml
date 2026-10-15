@@ -10,3 +10,6 @@ rules:
   - apiGroups: ["api.site-notifications.halo.run"]
     resources: ["webhook"]
     verbs: ["get", "list", "update", "delete"]
+  - apiGroups: ["api.site-notifications.halo.run"]
+    resources: ["webhook/test"]
+    verbs: ["create"]

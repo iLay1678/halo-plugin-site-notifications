@@ -92,9 +92,12 @@
 
 ### 用户 Webhook 通知
 
-1. 登录用户中心，进入“消息”下的“Webhook 通知”，保存自己的 Webhook 地址。
+1. 登录用户中心，进入“消息”下的“Webhook 通知”，填写 Webhook 地址、HTTP 方法、请求头和可选 JSON 正文模板。完整地址会回显，可直接编辑。
 2. 进入“我的 → 通知配置”，为需要接收的消息类型开启“Webhook 通知”通道，操作方式与邮件订阅相同。
-3. 对应类型的通知到达后，插件向该用户的地址发送一次 JSON POST。可重新输入地址替换配置，或点击“清除配置”停止转发。
+3. 对应类型的通知到达后，插件按保存的配置发送请求。支持 POST（默认）、PUT、PATCH、GET、DELETE；GET 和 DELETE 不发送正文，已填写的模板会保留。
+4. 点击“发送测试”，使用当前未保存的表单内容发送真实请求，并查看接收端的 HTTP 状态。测试不会保存配置；确认后点击“保存配置”。点击“清除配置”停止转发。
+
+默认请求头为 `Content-Type: application/json`，可添加或覆盖请求头，最多 32 个、总大小不超过 16 KiB。`Host`、`Content-Length` 等传输头由客户端管理，不能自行设置。宽屏下，模板参考与编辑区左右并排，可点击占位符或“复制示例”边查阅边编辑；说明独立滚动，不影响保存、测试按钮。窄屏参考放在表单和按钮下方，提供无空格占位符、模板示例与默认 JSON。
 
 通知器接入 Halo 的 `reactive-notifier` 扩展点，覆盖经过 Halo 通知中心投递给该用户的通知，包括本插件的站内消息、评论通知、登录提醒及其他插件注册的通知类型。只有用户开启的类型会转发；直接写入通知资源、未经过通知中心的消息不会触发通知器。管理员需要在 Halo 的通知扩展点中保持此通知器启用。
 
@@ -121,7 +124,7 @@
 
 `subject` 与 `attributes` 由通知来源提供，不同通知类型可能不同。接收端应返回 2xx；此功能投递失败只记录错误类型，不阻断其他通知通道，也不自动重试。
 
-地址仅允许 HTTPS、443 标准端口，禁止用户名/密码及 fragment，最多 4096 字符；拒绝本机、私网、链路本地、组播、云元数据等地址，并检查实际连接的全部 DNS 结果。请求不跟随重定向，连接超时 5 秒、整体超时 10 秒，响应正文最多 64 KiB。地址和模板按用户创建时间隔离保存在独立 ConfigMap 中，不使用用户名作为资源身份；删除用户时由用户清理控制器删除对应配置，避免同名用户复用旧配置。
+地址仅允许 HTTPS、443 标准端口，禁止用户名/密码及 fragment，最多 4096 字符；拒绝本机、私网、链路本地、组播、云元数据等地址，并检查实际连接的全部 DNS 结果。请求不跟随重定向，连接超时 5 秒、整体超时 10 秒，响应正文最多 64 KiB。地址、方法、模板与请求头统一保存在每用户独立的 ConfigMap 中，不创建新的 Secret；配置按用户创建时间隔离，不使用用户名作为资源身份。删除用户时由用户清理控制器删除对应配置，避免同名用户复用旧配置。
 
 ### 指定发送时间
 
@@ -178,7 +181,7 @@ macOS / Linux 安装 JDK 21，并确保 `JAVA_HOME` 指向该 JDK 后执行：
 
 GitHub Actions 通过工作流的 `java-version: 21` 安装 JDK，Gradle 使用 Runner 提供的 JDK，无需配置本地路径。
 
-当前版本为 **1.2.0**，产物为 `build/libs/halo-plugin-site-notifications-1.2.0.jar`，包含后端、插件清单及 ESM 控制台和用户中心资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
+当前版本为 **1.3.0**，产物为 `build/libs/halo-plugin-site-notifications-1.3.0.jar`，包含后端、插件清单及 ESM 控制台和用户中心资源。前端类型检查、lint、格式与测试纳入 Gradle `check`。
 
 业务 Java 包为 `top.ilay.sitenotifications`，根 Gradle group 为 `top.ilay`。送审时请使用完成安装与功能验收的同一个 JAR，并将实际文件大小、SHA-256 和运行结果更新到 [验证记录](docs/verification.md)；重新构建或改用 CI 制品后需要重新核对。
 
@@ -274,7 +277,20 @@ halo-plugin-site-notifications/
 
 ### 用户 Webhook API
 
-基础路径为 `/apis/api.site-notifications.halo.run/v1alpha1/userspaces/{username}/webhook`。GET 读取配置状态、脱敏后的域名和已保存模板，PUT 使用 `{"url":"https://example.com/hook","template":"{\"title\":\"{{title}}\"}"}` 保存，DELETE 清除。登录用户只能访问与本人用户名一致的路径，无效地址或模板返回 400，越权访问返回 403。插件启动时会把旧版本共享 Secret 中可匹配当前用户的地址和模板迁移到独立 ConfigMap，迁移未完成时保留旧数据等待下次启动。
+基础路径为 `/apis/api.site-notifications.halo.run/v1alpha1/userspaces/{username}/webhook`。GET 返回配置状态、完整地址、方法、模板及请求头，PUT 保存以下配置，DELETE 清除。登录用户只能访问与本人用户名一致的路径，无效配置返回 400，越权访问返回 403。
+
+```json
+{
+  "url": "https://example.com/hook",
+  "method": "POST",
+  "template": "{\"title\":\"{{title}}\"}",
+  "headers": {"X-Source": "Halo"}
+}
+```
+
+向基础路径下的 `/-/test` 发送 POST，正文同上，以当前配置发起真实测试，不写入存储。响应包含 `success`、接收端 `statusCode` 与 `message`；接收端非 2xx 或连接失败时 `success` 为 false，连接失败时没有状态码。
+
+插件启动时会把旧版本共享 Secret 中可匹配当前用户的地址和模板迁移到独立 ConfigMap，迁移未完成时保留旧数据等待下次启动。旧配置缺少方法与请求头时，默认使用 POST 和空自定义请求头。
 
 ## 常见问题
 

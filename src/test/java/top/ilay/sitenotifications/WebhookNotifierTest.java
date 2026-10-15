@@ -28,11 +28,59 @@ import org.springframework.web.reactive.function.server.HandlerStrategies;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.server.HttpServer;
 import reactor.test.StepVerifier;
-import run.halo.app.infra.utils.JsonUtils;
 import run.halo.app.notification.NotificationContext;
 
 class WebhookNotifierTest {
     private final WebhookConfigStore store = mock(WebhookConfigStore.class);
+
+    @Test
+    void actualHttpTransportUsesConfiguredMethodHeadersAndBodyAndSkipsGetBody() {
+        var receivedMethod = new AtomicReference<String>();
+        var receivedBody = new AtomicReference<String>();
+        var receivedHeader = new AtomicReference<String>();
+        var server = HttpServer.create().host("127.0.0.1").port(0).handle((request, response) -> {
+            receivedMethod.set(request.method().name());
+            receivedHeader.set(request.requestHeaders().get("X-Webhook-Test"));
+            return request.receive().aggregate().asString().defaultIfEmpty("").flatMap(body -> {
+                receivedBody.set(body);
+                return response.status(202).send().then();
+            });
+        }).bindNow();
+        var notifier = notifier(org.springframework.web.reactive.function.client.ExchangeFunctions.create(
+            new org.springframework.http.client.reactive.ReactorClientHttpConnector(
+                WebhookNotifier.httpClient(NoopAddressResolverGroup.INSTANCE))));
+        try {
+            var uri = URI.create("http://127.0.0.1:" + server.port() + "/hook");
+            for (var method : java.util.List.of("POST", "PUT", "PATCH", "GET", "DELETE")) {
+                var config = new WebhookConfig(uri.toString(), method, null, Map.of("X-Webhook-Test", "value"));
+                assertEquals(202, notifier.send(config, uri, "{\"text\":\"test\"}").block(Duration.ofSeconds(5)));
+                assertEquals(method, receivedMethod.get());
+                assertEquals("value", receivedHeader.get());
+                assertEquals(java.util.Set.of("GET", "DELETE").contains(method) ? "" : "{\"text\":\"test\"}", receivedBody.get());
+            }
+        } finally {
+            notifier.close();
+            server.disposeNow();
+        }
+    }
+
+    @Test
+    void testUsesDraftTemplateAndRealRecipientAndReturnsRemoteFailureStatus() {
+        var notifier = notifier(request -> {
+            assertEquals(HttpMethod.PUT, request.method());
+            assertEquals("draft", request.headers().getFirst("X-Draft"));
+            return Mono.just(ClientResponse.create(HttpStatus.SERVICE_UNAVAILABLE).build());
+        });
+        try {
+            var config = new WebhookConfig("https://8.8.8.8/hook", "PUT", "{\"text\":\"{{title}}\"}", Map.of("X-Draft", "draft"));
+            assertEquals(503, notifier.sendTest("alice", config).block(Duration.ofSeconds(5)));
+            org.mockito.Mockito.verifyNoInteractions(store);
+            StepVerifier.create(notifier.sendTest("alice", new WebhookConfig("https://127.0.0.1/hook", null)))
+                .expectError(IllegalArgumentException.class).verify();
+        } finally {
+            notifier.close();
+        }
+    }
 
     @Test
     void missingConfigurationSkipsSending() {
@@ -48,7 +96,7 @@ class WebhookNotifierTest {
     }
 
     @Test
-    void sendsJsonPostToTheRecipientsConfiguredDestination() {
+    void sendsJsonPostToTheRecipientsConfiguredDestination() throws Exception {
         var destination = URI.create("https://8.8.8.8/hook?token=secret");
         when(store.fetch("alice")).thenReturn(Mono.just(new WebhookConfig(destination.toString(), null)));
         var capturedBody = new AtomicReference<String>();
@@ -77,7 +125,7 @@ class WebhookNotifierTest {
         });
         StepVerifier.create(notifier.notify(context())).verifyComplete();
         assertNull(capturedError.get(), () -> String.valueOf(capturedError.get()));
-        var json = JsonUtils.jsonToObject(capturedBody.get(), Map.class);
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().readValue(capturedBody.get(), Map.class);
         assertEquals("1", json.get("version"));
         assertEquals("系统消息", json.get("title"));
         assertEquals("正文", json.get("rawBody"));
@@ -87,7 +135,7 @@ class WebhookNotifierTest {
 
     @Test
     void configurationAndDeliveryErrorsAreIsolated() {
-        when(store.fetch("alice")).thenReturn(Mono.error(new IllegalStateException("Secret 读取失败")));
+        when(store.fetch("alice")).thenReturn(Mono.error(new IllegalStateException("ConfigMap 读取失败")));
         var requests = new AtomicInteger();
         var notifier = notifier(request -> {
             requests.incrementAndGet();
